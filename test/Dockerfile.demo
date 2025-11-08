@@ -1,4 +1,0 @@
-FROM snappybeebit/odin:latest
-
-COPY . .
-CMD ["odin", "run", "."]
