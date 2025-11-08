@@ -1,0 +1,7 @@
+FROM snappybeebit/odin:dev-2025-11
+
+WORKDIR /test
+COPY . .
+
+RUN odin build .
+CMD ["./test"]
