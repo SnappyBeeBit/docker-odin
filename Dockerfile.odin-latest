@@ -1,26 +1,34 @@
 ARG ODIN_REF=master
 
-FROM alpine:3.20 AS build
-RUN echo "http://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories
+# ---------- Build stage ----------
+FROM ubuntu:24.04 AS build
 
-RUN apk add --no-cache \
-      git build-base clang21 llvm21-dev ca-certificates \
-  && ln -s /usr/bin/llvm-config-21 /usr/bin/llvm-config || true
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      git build-essential make ca-certificates \
+      clang-18 llvm-18-dev \
+  && update-ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
-
 ARG ODIN_REF
-RUN git clone --depth=1 --single-branch --branch "${ODIN_REF}" \
-      https://github.com/odin-lang/Odin.git
+RUN git clone --depth=1 --branch "${ODIN_REF}" https://github.com/odin-lang/Odin.git
 
 WORKDIR /src/Odin
-RUN --mount=type=cache,target=/root/.cache \
-    make -j"$(nproc)" release-native
+# Tell the build which llvm-config to use to avoid symlink hacks
+RUN make -j"$(nproc)" release-native LLVM_CONFIG=llvm-config-18
 
-FROM alpine:3.20 AS runtime
-RUN echo "http://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories \
- && apk add --no-cache libstdc++ llvm21-libs ca-certificates
+# ---------- Runtime stage ----------
+FROM ubuntu:24.04 AS runtime
 
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates libstdc++6 libllvm18 \
+      clang lld build-essential \
+  && update-ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+# Odin binary and libraries
 COPY --from=build /src/Odin/odin /usr/local/bin/odin
 COPY --from=build /src/Odin/core /usr/local/lib/odin/core
 COPY --from=build /src/Odin/vendor /usr/local/lib/odin/vendor
