@@ -1,4 +1,4 @@
-FROM snappybeebit/odin:dev-2025-11
+FROM snappybeebit/odin:dev-latest
 
 WORKDIR /test
 COPY . .
