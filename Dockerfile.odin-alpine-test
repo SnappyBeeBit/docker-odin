@@ -1,0 +1,34 @@
+ARG ODIN_REF=master
+
+FROM alpine:3.20 AS build
+RUN echo "http://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories
+
+RUN apk add --no-cache \
+      git build-base clang21 llvm21-dev ca-certificates \
+  && ln -s /usr/bin/llvm-config-21 /usr/bin/llvm-config || true
+
+WORKDIR /src
+
+ARG ODIN_REF
+RUN git clone --depth=1 --single-branch --branch "${ODIN_REF}" \
+      https://github.com/odin-lang/Odin.git
+
+WORKDIR /src/Odin
+RUN --mount=type=cache,target=/root/.cache \
+    make -j"$(nproc)" release-native
+
+FROM alpine:3.20 AS runtime
+RUN echo "http://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories \
+ && apk add --no-cache libstdc++ llvm21-libs ca-certificates
+RUN apk add clang21
+
+#Zone Info isn't included by default
+RUN apk add --no-cache tzdata
+
+COPY --from=build /src/Odin/odin /usr/local/bin/odin
+COPY --from=build /src/Odin/core /usr/local/lib/odin/core
+COPY --from=build /src/Odin/vendor /usr/local/lib/odin/vendor
+COPY --from=build /src/Odin/base /usr/local/lib/odin/base
+
+ENV ODIN_ROOT=/usr/local/lib/odin
+CMD ["odin", "version"]
