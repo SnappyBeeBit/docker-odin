@@ -27,6 +27,11 @@ FROM alpine:3.20 AS runtime
 RUN echo "http://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories \
  && apk add --no-cache libstdc++ llvm21-libs ca-certificates clang21 python3
 
+#tz data ommitted by default
+RUN apk add --no-cache tzdata
+#by default there local time isn't set since you have to install timezones
+ENV TZ="America/Lima"
+
 # Odin binary and libraries
 #COPY --from=build /src/Odin/odin /usr/local/bin/odin
 #COPY --from=build /src/Odin/core /usr/local/lib/odin/core
@@ -38,6 +43,8 @@ WORKDIR /src/Odin
 
 ENV ODIN_ROOT=/src/Odin
 
+
+##issues reported on github
 #passed
 #CMD ["./odin", "test", "tests/core", "-all-packages", \
 #    "-define:ODIN_TEST_NAMES=test_core_math_big.test_big_math_vectors", \
@@ -48,7 +55,13 @@ ENV ODIN_ROOT=/src/Odin
 #     "-define:ODIN_TEST_NAMES=tests_core_posix.execute_struct_checks", \
 #     "-define:ODIN_TEST_RANDOM_SEED=581997839029675"]
 
-#multiple failures
-CMD ["./odin", "test", "tests/core", "-all-packages"]
+##Me looking for a complete list
+#time issues are now resolved
+#CMD ["./odin", "test", "tests/core", "-all-packages"]
+
+#Final boss, POSIX
+CMD ["./odin", "test", "tests/core", "-all-packages", \
+     "-define:ODIN_TEST_NAMES=tests_core_posix.execute_struct_checks", \
+     "-define:ODIN_TEST_RANDOM_SEED=581997839029675"]
 
 
