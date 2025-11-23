@@ -1,5 +1,7 @@
 ARG ODIN_REF=dev-2025-11
 
+#You'd think this would work
+#FROM frolvlad/alpine-glibc:alpine-3 AS build
 FROM alpine:3.20 AS build
 # Need edge for LLVM/Clang 21
 RUN echo "http://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories
@@ -7,6 +9,15 @@ RUN echo "http://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositori
 RUN apk add --no-cache \
       git build-base clang21 llvm21-dev ca-certificates \
   && ln -s /usr/bin/llvm-config-21 /usr/bin/llvm-config || true
+
+## failed
+#RUN apk --no-cache add gcompat libc6-compat libstdc++ patchelf
+#RUN patchelf --set-interpreter /lib/ld-linux-x86-64.so.2 $(which python3)
+#RUN apk del patchelf
+
+#RUN apk --no-cache add gcompat
+#RUN apk --no-cache add --force-overwrite glibc-2.42.apk
+
 
 WORKDIR /src
 
@@ -22,7 +33,10 @@ WORKDIR /src/Odin
 RUN --mount=type=cache,target=/root/.cache \
     make -j"$(nproc)" release-native
 
+
 FROM alpine:3.20 AS runtime
+#FROM frolvlad/alpine-glibc:alpine-3 AS runtime
+ENV LD_LIBRARY_PATH=/usr/glibc-compat/sbin/ldconfig
 # Need edge for llvm runtime libs if odin links against them
 RUN echo "http://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories \
  && apk add --no-cache libstdc++ llvm21-libs ca-certificates clang21 python3
@@ -37,12 +51,11 @@ ENV TZ="America/Lima"
 #COPY --from=build /src/Odin/core /usr/local/lib/odin/core
 #COPY --from=build /src/Odin/vendor /usr/local/lib/odin/vendor
 #COPY --from=build /src/Odin/base /usr/local/lib/odin/base
-COPY --from=build . .
+COPY --from=build /src/Odin /usr/local/lib/odin
 
-WORKDIR /src/Odin
+WORKDIR /usr/local/lib/odin
 
-ENV ODIN_ROOT=/src/Odin
-
+ENV ODIN_ROOT=/usr/local/lib/odin
 
 ##issues reported on github
 #passed
